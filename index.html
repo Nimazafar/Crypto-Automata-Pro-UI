@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Automata Pro - نسخه شخصی بی‌رقیب</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue.js 2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14"></script>
+    <!-- Chart.js CDN for interactive charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Ethers.js CDN for blockchain interaction -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        /* Modern, professional font */
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            transition: background-color 0.5s ease;
+        }
+
+        /* Enhanced Dark Mode Palette */
+        body.dark {
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+
+        .gradient-text {
+            background-image: linear-gradient(45deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            transition: width 0.3s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #4a5568;
+            border-radius: 10px;
+            border: 2px solid #2d3748;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1c2128;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #30363d;
+            border-color: #1c2128;
+        }
+
+        /* Loading Skeleton Animation */
+        .skeleton {
+            background-color: #e2e8f0;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.5rem;
+        }
+        .dark .skeleton {
+             background-color: #2d3748;
+        }
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 150%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        .dark .skeleton::after {
+             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+        }
+        @keyframes shimmer {
+            100% {
+                left: 150%;
+            }
+        }
+        
+        /* Command Palette Styling */
+        .command-palette-backdrop {
+            background-color: rgba(10, 10, 20, 0.6);
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Vue Transitions */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter, .fade-leave-to {
+            opacity: 0;
+        }
+
+        /* Custom Alert Modal */
+        .custom-alert-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+        }
+        .custom-alert-box {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            text-align: center;
+        }
+        .dark .custom-alert-box {
+            background-color: #161b22;
+            color: #c9d1d9;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="flex h-screen overflow-hidden">
+        
+        <!-- Command Palette -->
+        <transition name="fade">
+            <div v-if="showCommandPalette" @click="showCommandPalette = false" class="command-palette-backdrop fixed inset-0 z-50 flex items-start justify-center pt-20">
+                <div @click.stop class="bg-white dark:bg-[#161b22] w-full max-w-2xl rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="p-4 border-b dark:border-gray-700 flex items-center">
+                        <i class="fa-solid fa-magnifying-glass text-gray-400 mr-3"></i>
+                        <input type="text" v-model="commandQuery" @input="filterCommands" placeholder="دستور خود را تایپ کنید..." class="w-full bg-transparent text-lg focus:outline-none text-gray-800 dark:text-gray-200">
+                    </div>
+                    <ul class="max-h-96 overflow-y-auto">
+                        <li v-for="cmd in filteredCommands" :key="cmd.id" @click="executeCommand(cmd.action)"
+                            class="p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 cursor-pointer flex justify-between items-center transition-colors">
+                            <div class="flex items-center">
+                                <i :class="cmd.icon" class="text-indigo-400 w-6 text-center mr-4"></i>
+                                <span>{{ cmd.name }}</span>
+                            </div>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ cmd.category }}</span>
+                        </li>
+                        <li v-if="!filteredCommands.length" class="p-4 text-center text-gray-500">
+                            دستوری یافت نشد.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </transition>
+
+        <!-- Custom Alert Modal -->
+        <transition name="fade">
+            <div v-if="showAlertModal" class="custom-alert-backdrop fixed inset-0 z-50 flex items-center justify-center">
+                <div class="custom-alert-box dark:border dark:border-gray-700">
+                    <p class="text-lg font-semibold mb-4">{{ alertMessage }}</p>
+                    <button @click="showAlertModal = false" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105">
+                        متوجه شدم
+                    </button>
+                </div>
+            </div>
+        </transition>
+
+        <!-- Sidebar -->
+        <aside :class="['sidebar bg-white dark:bg-[#0d1117] border-l border-gray-200 dark:border-[#21262d] flex-shrink-0', isSidebarCollapsed ? 'w-20' : 'w-64']">
+            <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-800">
+                <span v-if="!isSidebarCollapsed" class="gradient-text font-extrabold text-xl">CryptoAutomata</span>
+                 <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="text-gray-500 hover:text-indigo-400 dark:text-gray-400 dark:hover:text-white">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
+            </div>
+            <nav class="p-4 space-y-2">
+                <a v-for="item in menuItems" :key="item.view" href="#" @click.prevent="activeView = item.view"
+                   :class="['flex items-center py-3 px-4 rounded-lg transition-all duration-200', activeView === item.view ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50']">
+                    <i :class="[item.icon, 'w-6 text-center', isSidebarCollapsed ? 'text-xl' : '']"></i>
+                    <span v-if="!isSidebarCollapsed" class="mr-4 font-semibold">{{ item.name }}</span>
+                </a>
+            </nav>
+            <div class="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-800">
+                <div class="flex items-center justify-between">
+                     <span v-if="!isSidebarCollapsed" class="text-sm">حالت تاریک</span>
+                     <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" v-model="darkMode" @change="toggleDarkMode" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                     </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white dark:bg-[#161b22] border-b border-gray-200 dark:border-[#21262d] flex-shrink-0 h-16 flex items-center justify-between px-6">
+                 <div>
+                    <h1 class="text-xl font-bold text-gray-800 dark:text-gray-200">{{ currentViewTitle }}</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button @click="showCommandPalette = true" class="text-gray-500 hover:text-indigo-400 dark:text-gray-400 dark:hover:text-white transition">
+                        <i class="fa-solid fa-terminal mr-2"></i>
+                        <span class="text-sm">جستجوی سریع (Ctrl+K)</span>
+                    </button>
+                    <div class="w-px h-6 bg-gray-200 dark:bg-gray-700"></div>
+                    <div class="flex items-center gap-2">
+                         <span :class="['w-3 h-3 rounded-full', walletConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500']"></span>
+                         <span class="text-sm font-medium">{{ walletConnected ? connectedAddress.substring(0, 6) + '...' + connectedAddress.substring(38) : 'کیف پول متصل نیست' }}</span>
+                    </div>
+                     <button @click="connectWallet" :disabled="walletConnected || !isAuthReady"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                        <i class="fas fa-wallet mr-2"></i> اتصال
+                    </button>
+                    <span v-if="userId" class="text-xs text-gray-500 dark:text-gray-400 mr-2" title="شناسه کاربری شما برای ذخیره تنظیمات">
+                        ID: {{ userId.substring(0, 10) }}...
+                    </span>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-[#010409]">
+                <transition name="fade" mode="out-in">
+                    <!-- Dashboard View -->
+                    <div v-if="activeView === 'dashboard'" key="dashboard">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                           <!-- KPI Cards -->
+                           <div v-for="kpi in kpiMetrics" :key="kpi.title" class="bg-white dark:bg-[#161b22] p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                               <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{{ kpi.title }}</h3>
+                               <div v-if="!isLoading" :class="['text-3xl font-bold', kpi.color]">{{ kpi.value }}</div>
+                               <div v-else class="skeleton h-8 w-3/4 rounded-md mt-1"></div>
+                               <div v-if="!isLoading" class="text-xs text-gray-400 mt-2 flex items-center" :class="kpi.changeType === 'positive' ? 'text-green-500' : 'text-red-500'">
+                                   <i :class="['fa-solid mr-1', kpi.changeType === 'positive' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down']"></i>
+                                   {{ kpi.change }}
+                               </div>
+                               <div v-else class="skeleton h-4 w-1/2 rounded-md mt-2"></div>
+                           </div>
+                        </div>
+
+                        <!-- Portfolio Performance Chart -->
+                        <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 mb-8">
+                           <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">عملکرد پورتفولیو</h3>
+                           <div v-if="isLoading" class="skeleton h-80 w-full rounded-md"></div>
+                           <canvas v-show="!isLoading" id="portfolioChart"></canvas>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- Active Bots -->
+                            <div class="lg:col-span-1 bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">خلاصه وضعیت ربات‌ها</h3>
+                                 <div v-if="isLoading" class="space-y-4">
+                                     <div class="skeleton h-16 w-full rounded-md" v-for="i in 3" :key="i"></div>
+                                 </div>
+                                <div v-else-if="!topPerformingBots.length" class="text-center text-gray-500 dark:text-gray-400 py-4">
+                                    هیچ ربات فعالی وجود ندارد.
+                                </div>
+                                <div v-else class="space-y-4">
+                                    <div v-for="bot in topPerformingBots" :key="bot.id" class="flex items-center">
+                                        <div class="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg mr-4">
+                                            <i :class="bot.icon" class="text-indigo-500 text-xl"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="font-semibold">{{ bot.name }}</p>
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ bot.strategy }}</p>
+                                        </div>
+                                        <div :class="['font-bold text-lg', bot.pnl >= 0 ? 'text-green-500' : 'text-red-500']">
+                                           ${{ bot.pnl.toFixed(2) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                             <!-- Market Predictions (AI Sentiment Analysis) -->
+                            <div class="lg:col-span-2 bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">تحلیل احساسات بازار با AI</h3>
+                                <div v-if="isLoading" class="space-y-4">
+                                     <div class="skeleton h-12 w-full rounded-md" v-for="i in 3" :key="i"></div>
+                                 </div>
+                                <ul v-else class="space-y-4">
+                                   <li v-for="pred in dynamicMarketPredictions" :key="pred.asset" class="flex items-center gap-4 text-sm">
+                                       <span class="font-bold w-12">{{pred.asset}}/USDT</span>
+                                       <div class="w-24 text-center py-1 rounded-md text-white" :class="pred.bias === 'صعودی' ? 'bg-green-500' : 'bg-red-500'">
+                                          {{ pred.bias }}
+                                       </div>
+                                       <div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-4 overflow-hidden">
+                                           <div class="bg-indigo-500 h-4" :style="{width: pred.confidence + '%'}"></div>
+                                       </div>
+                                       <span class="w-20 text-right font-semibold">{{ pred.confidence }}% اطمینان</span>
+                                   </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Proactive AI Insights -->
+                        <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 mt-8">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i> بینش‌های پیشگیرانه AI
+                            </h3>
+                            <div v-if="proactiveInsights.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-4">
+                                در حال حاضر هیچ بینش پیشگیرانه جدیدی وجود ندارد.
+                            </div>
+                            <div v-else class="space-y-4">
+                                <div v-for="(insight, index) in proactiveInsights" :key="index" class="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md">
+                                    <p class="text-sm font-semibold mb-1 flex items-center">
+                                        <i :class="getInsightIcon(insight.type)" class="mr-2" :style="{color: getInsightColor(insight.type)}"></i>
+                                        {{ insight.title }}
+                                    </p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">{{ insight.description }}</p>
+                                    <button v-if="insight.action" @click="executeInsightAction(insight.action)" class="mt-2 text-xs bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-1 rounded-md">
+                                        {{ insight.actionText }}
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                <!-- Realization Note -->
+                                این بینش‌ها توسط هوش مصنوعی شبیه‌سازی شده و بر اساس تحلیل‌های فرضی از فعالیت کیف پول و بازار تولید می‌شوند. برای بینش‌های کاملاً واقعی، نیاز به یک بک‌اند برای پردازش داده‌های بلاکچین در زمان واقعی است.
+                            </p>
+                        </div>
+
+                    </div>
+                    
+                    <!-- Robots View -->
+                    <div v-if="activeView === 'robots'" key="robots">
+                        <h2 class="text-2xl font-bold mb-6">مدیریت و بهینه‌سازی ربات‌ها</h2>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <div v-for="(bot, botKey) in bots" :key="botKey"
+                                 class="bg-white dark:bg-[#161b22] p-5 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 flex flex-col">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-3">
+                                        <i :class="bot.icon" class="text-2xl text-indigo-400"></i>
+                                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ bot.name }}</h3>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" :checked="bot.enabled" @change="toggleBot(botKey)" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                </div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 h-10">{{ bot.description }}</p>
+
+                                <div class="space-y-4 mb-4">
+                                     <div>
+                                         <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">سرمایه درگیر ($)</label>
+                                         <input type="number" v-model.number="bot.maxCapital" @change="saveBotSettings(botKey)"
+                                                class="w-full mt-1 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-sm">
+                                     </div>
+                                     <div>
+                                         <label class="block text-xs font-medium text-gray-500 dark:text-gray-400">اولویت Gas</label>
+                                         <select v-model="bot.gasPriority" @change="saveBotSettings(botKey)"
+                                                class="w-full mt-1 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-sm">
+                                             <option value="slow">آهسته (ارزان)</option>
+                                             <option value="standard">استاندارد (متوسط)</option>
+                                             <option value="fast">سریع (گران)</option>
+                                         </select>
+                                     </div>
+                                </div>
+
+                                <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-800">
+                                     <div class="flex justify-between items-center">
+                                        <div class="text-xs">
+                                            <div class="flex justify-between">
+                                                <span>سود/زیان تخمینی:</span>
+                                                <span :class="['font-bold', bot.simulatedPnl >= 0 ? 'text-green-500' : 'text-red-500']">${{ bot.simulatedPnl.toFixed(2) }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span>نرخ موفقیت:</span>
+                                                <span class="font-bold">{{ bot.simulatedWinRate.toFixed(1) }}%</span>
+                                            </div>
+                                        </div>
+                                        <button @click="smartAdjustBot(botKey)" class="text-xs bg-teal-500 hover:bg-teal-600 text-white px-2 py-1 rounded-md" title="بهینه‌سازی هوشمند پارامترها با AI">
+                                            <i class="fas fa-microchip"></i>
+                                        </button>
+                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Smart Bot Creator -->
+                         <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 mt-8">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                                <i class="fas fa-magic mr-2 text-indigo-500"></i> ایجاد ربات هوشمند با تحلیل ریسک AI
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                ایده استراتژی خود را وارد کنید تا AI یک ربات سفارشی طراحی، ریسک‌های آن را تحلیل و سپس آن را به لیست شما اضافه کند.
+                            </p>
+                            <textarea v-model="botStrategyIdeaInput" rows="3" placeholder="مثال: یک ربات که توکن‌های تازه لیست شده را با تحلیل احساسات شبکه‌های اجتماعی معامله می‌کند..."
+                                      class="w-full p-3 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md text-sm mb-4"></textarea>
+                            <button @click="generateAndDeployBot" :disabled="loadingBotConcept"
+                                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition disabled:opacity-50">
+                                <i v-if="loadingBotConcept" class="fas fa-spinner fa-spin mr-2"></i>
+                                طراحی، تحلیل و افزودن ربات (با AI)
+                            </button>
+                            <div v-if="botAnalysisResult" class="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-md">
+                                <h4 class="font-bold mb-2 text-sm">نتیجه تحلیل ریسک و پاداش ربات:</h4>
+                                <pre class="whitespace-pre-wrap text-xs max-h-48 overflow-y-auto">{{ botAnalysisResult }}</pre>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                <!-- Realization Note -->
+                                برای اجرای واقعی ربات‌های معاملاتی و اتصال به صرافی‌ها، نیاز به بک‌اند امن برای مدیریت کلیدهای API و اجرای تراکنش‌ها است. این بخش در حال حاضر از AI برای شبیه‌سازی طراحی و تحلیل استفاده می‌کند.
+                            </p>
+                         </div>
+                    </div>
+                    
+                    <!-- AI Center View -->
+                    <div v-if="activeView === 'ai_center'" key="ai_center">
+                         <h2 class="text-2xl font-bold mb-6">مرکز تحلیل و فرماندهی هوش مصنوعی</h2>
+                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                             <!-- Smart Contract Auditor -->
+                             <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">ممیزی امنیتی قرارداد هوشمند (با AI)</h3>
+                                <textarea v-model="smartContractCodeInput" rows="6" placeholder="کد Solidity قرارداد را اینجا وارد کنید..."
+                                          class="w-full p-3 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md font-mono text-sm"></textarea>
+                                <button @click="auditSmartContract" :disabled="loadingContractAudit"
+                                        class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition disabled:opacity-50">
+                                    <i v-if="loadingContractAudit" class="fas fa-spinner fa-spin mr-2"></i>
+                                    شروع ممیزی
+                                </button>
+                                <div v-if="contractAuditResult" class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-md max-h-64 overflow-y-auto">
+                                    <pre class="whitespace-pre-wrap text-sm">{{ contractAuditResult }}</pre>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                        <!-- Realization Note -->
+                                        برای ممیزی واقعی قراردادهای هوشمند، نیاز به اتصال به ابزارهای تحلیل استاتیک و دینامیک بلاکچین (مانند Slither, MythX) و همچنین پایگاه‌های داده آسیب‌پذیری است. این قابلیت در حال حاضر از AI برای تحلیل متنی کد استفاده می‌کند.
+                                    </p>
+                                </div>
+                             </div>
+
+                             <!-- Transaction Decoder -->
+                             <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">رمزگشای تراکنش (با AI)</h3>
+                                <input type="text" v-model="transactionHashInput" placeholder="هش تراکنش را اینجا وارد کنید (e.g., 0x...)"
+                                          class="w-full p-3 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-700 rounded-md font-mono text-sm">
+                                <button @click="decodeTransaction" :disabled="loadingTxDecode"
+                                        class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition disabled:opacity-50">
+                                    <i v-if="loadingTxDecode" class="fas fa-spinner fa-spin mr-2"></i>
+                                    توضیح تراکنش
+                                </button>
+                                <div v-if="txDecodeResult" class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-md max-h-64 overflow-y-auto">
+                                    <p class="whitespace-pre-wrap text-sm">{{ txDecodeResult }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                        <!-- Realization Note -->
+                                        برای رمزگشایی واقعی تراکنش‌ها، نیاز به اتصال به نودهای بلاکچین (مانند Infura یا Alchemy) برای دریافت داده‌های خام تراکنش و ABI قراردادهای مربوطه است. این قابلیت در حال حاضر از AI برای تفسیر هش استفاده می‌کند.
+                                    </p>
+                                </div>
+                             </div>
+
+                             <!-- AI Security Advisor -->
+                             <div class="lg:col-span-2 bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">مشاور امنیتی AI (شبیه‌سازی)</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    AI کیف پول متصل شما را برای ریسک‌های امنیتی احتمالی (مانند دسترسی‌های مشکوک، حملات فیشینگ Dust و موارد دیگر) اسکن می‌کند.
+                                </p>
+                                <button @click="runAISecurityScan" :disabled="loadingAISecurityScan || !walletConnected"
+                                        class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition disabled:opacity-50">
+                                    <i v-if="loadingAISecurityScan" class="fas fa-spinner fa-spin mr-2"></i>
+                                    شروع اسکن امنیتی AI
+                                </button>
+                                <div v-if="aiSecurityScanResult" class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-md max-h-64 overflow-y-auto">
+                                    <pre class="whitespace-pre-wrap text-sm">{{ aiSecurityScanResult }}</pre>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                        <!-- Realization Note -->
+                                        برای اسکن واقعی کیف پول‌ها و تحلیل ریسک‌های امنیتی با AI، نیاز به دسترسی به داده‌های تراکنش بلاکچین، تحلیل الگوهای کلاهبرداری و مدل‌های پیچیده AI در یک بک‌اند امن است. این قابلیت در حال حاضر از AI برای شبیه‌سازی تحلیل استفاده می‌کند.
+                                    </p>
+                                </div>
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- Security Center View -->
+                    <div v-if="activeView === 'security_center'" key="security_center">
+                         <h2 class="text-2xl font-bold mb-6">مرکز امنیت و مدیریت ریسک</h2>
+                         <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">مدیریت دسترسی‌ها (Token Approval Manager)</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                قراردادهای هوشمندی که به توکن‌های شما دسترسی دارند را مشاهده و در صورت نیاز، دسترسی آن‌ها را لغو کنید. این یک ابزار حیاتی برای جلوگیری از سرقت دارایی است.
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                                <input type="text" v-model="tokenAddressInput" placeholder="آدرس قرارداد توکن (ERC-20)"
+                                       class="flex-1 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-sm">
+                                <input type="text" v-model="spenderAddressInput" placeholder="آدرس قرارداد خرج‌کننده (Spender)"
+                                       class="flex-1 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-sm">
+                                <button @click="fetchApprovals" :disabled="!walletConnected || !tokenAddressInput || !spenderAddressInput" class="bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i v-if="loadingApprovals" class="fas fa-spinner fa-spin"></i>
+                                    <span v-else>بررسی دسترسی‌ها</span>
+                                </button>
+                            </div>
+                             <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">توکن</th>
+                                            <th scope="col" class="px-6 py-3">آدرس قرارداد (Spender)</th>
+                                            <th scope="col" class="px-6 py-3">مقدار دسترسی</th>
+                                            <th scope="col" class="px-6 py-3">عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-if="loadingApprovals">
+                                            <td colspan="4" class="text-center p-4">در حال بارگذاری...</td>
+                                        </tr>
+                                        <tr v-else-if="!tokenApprovals.length && !loadingApprovals">
+                                            <td colspan="4" class="text-center p-4">دسترسی‌ای برای نمایش یافت نشد.</td>
+                                        </tr>
+                                        <tr v-for="approval in tokenApprovals" :key="approval.tokenAddress + approval.spender" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ approval.tokenSymbol }}</td>
+                                            <td class="px-6 py-4 font-mono">{{ approval.spender.substring(0,10) }}...{{ approval.spender.substring(38) }}</td>
+                                            <td class="px-6 py-4 font-bold" :class="approval.amount === 'Unlimited' ? 'text-yellow-500' : ''">{{ approval.amount }}</td>
+                                            <td class="px-6 py-4">
+                                                <button @click="revokeApproval(approval)" class="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-3 rounded-md">لغو دسترسی</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    این بخش به شما امکان می‌دهد دسترسی‌های توکن ERC-20 را برای یک آدرس خرج‌کننده خاص بررسی و لغو کنید. برای بررسی تمام دسترسی‌های کیف پول شما، نیاز به یک سرویس ایندکسینگ بلاکچین (مانند Etherscan API) است.
+                                </p>
+                             </div>
+                         </div>
+                    </div>
+
+                    <!-- Web3 Opportunity Hunter View -->
+                    <div v-if="activeView === 'opportunity_hunter'" key="opportunity_hunter">
+                         <h2 class="text-2xl font-bold mb-6">شکارچی فرصت‌های Web3</h2>
+                         <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">اسکن هوشمند برای فرصت‌های درآمدی</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                AI به طور مداوم بلاکچین را برای یافتن ایردراپ‌ها، لیست‌های سفید NFT و فرصت‌های متاورس بر اساس فعالیت کیف پول شما اسکن می‌کند.
+                            </p>
+                            <button @click="findWeb3Opportunities" :disabled="loadingOpportunities || !walletConnected"
+                                    class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition disabled:opacity-50">
+                                <i v-if="loadingOpportunities" class="fas fa-spinner fa-spin mr-2"></i>
+                                <span v-else>شروع اسکن فرصت‌ها (با AI)</span>
+                            </button>
+                            
+                            <div v-if="!loadingOpportunities && airdropOpportunities.length === 0 && nftWhitelistSpots.length === 0 && metaverseOpportunities.length === 0" class="text-center text-gray-500 dark:text-gray-400 mt-8">
+                                پس از اسکن، فرصتی یافت نشد. به تعامل با پروتکل‌های جدید ادامه دهید.
+                            </div>
+                            
+                            <!-- Airdrop Opportunities -->
+                            <div class="mt-8" v-if="airdropOpportunities.length > 0">
+                                <h4 class="text-md font-bold mb-4 flex items-center"><i class="fas fa-parachute-box mr-2 text-blue-400"></i>فرصت‌های ایردراپ احتمالی</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div v-for="airdrop in airdropOpportunities" :key="airdrop.project" class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border dark:border-gray-700">
+                                        <h5 class="font-bold">{{ airdrop.project }} <span class="text-xs px-2 py-1 rounded-full ml-2" :class="getPriorityClass(airdrop.priority)">{{ airdrop.priority }}</span></h5>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ airdrop.description }}</p>
+                                        <div class="mt-3">
+                                            <span class="text-xs font-semibold">اطمینان AI: {{ airdrop.confidenceScore }}%</span>
+                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-1">
+                                                <div class="bg-blue-500 h-2.5 rounded-full" :style="{width: airdrop.confidenceScore + '%'}"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- NFT Whitelist Spots -->
+                            <div class="mt-8" v-if="nftWhitelistSpots.length > 0">
+                                <h4 class="text-md font-bold mb-4 flex items-center"><i class="fas fa-ticket mr-2 text-purple-400"></i>فرصت‌های لیست سفید (Whitelist) NFT</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                        <tbody>
+                                            <tr v-for="nft in nftWhitelistSpots" :key="nft.project" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                                                <td class="px-4 py-4 font-medium">{{ nft.project }}</td>
+                                                <td class="px-4 py-4"><span class="px-2 py-1 text-xs rounded-full" :class="nft.status === 'واجد شرایط' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'">{{ nft.status }}</span></td>
+                                                <td class="px-4 py-4 text-xs">{{ nft.action }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Metaverse Opportunities -->
+                            <div class="mt-8" v-if="metaverseOpportunities.length > 0">
+                                <h4 class="text-md font-bold mb-4 flex items-center"><i class="fas fa-vr-cardboard mr-2 text-cyan-400"></i>فرصت‌های متاورس</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div v-for="meta in metaverseOpportunities" :key="meta.project" class="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border dark:border-gray-700">
+                                        <h5 class="font-bold">{{ meta.project }} <span class="text-xs px-2 py-1 rounded-full ml-2" :class="getPriorityClass(meta.priority)">{{ meta.priority }}</span></h5>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ meta.description }}</p>
+                                        <p class="text-xs mt-2"><b>نوع فرصت:</b> {{ meta.type }}</p>
+                                        <p class="text-xs mt-1"><b>اقدام لازم:</b> {{ meta.action }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                <!-- Realization Note -->
+                                برای شکار فرصت‌های واقعی Web3 (ایردراپ‌ها، لیست‌های سفید NFT، متاورس)، نیاز به تحلیل مداوم داده‌های بلاکچین (تراکنش‌ها، رویدادها، وضعیت قراردادها) و فیلتر کردن آن‌ها با استفاده از الگوریتم‌های پیشرفته و هوش مصنوعی در یک بک‌اند قدرتمند است. این قابلیت در حال حاضر از AI برای شبیه‌سازی تحلیل استفاده می‌کند.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Settings View -->
+                    <div v-if="activeView === 'settings'" key="settings">
+                        <h2 class="text-2xl font-bold mb-6">تنظیمات</h2>
+                        <div class="bg-white dark:bg-[#161b22] p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 mb-8">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4">تنظیمات عمومی</h3>
+                            <div class="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-800">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">حالت تاریک</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" v-model="darkMode" @change="toggleDarkMode" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between py-2">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">سطح واقع‌گرایی شبیه‌سازی AI</span>
+                                <select v-model="simulationRealismLevel" @change="saveFirestoreSettings"
+                                        class="p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-sm">
+                                    <option value="low">پایین (ساده)</option>
+                                    <option value="medium">متوسط (پیش‌فرض)</option>
+                                    <option value="high">بالا (واقع‌گرایانه‌تر)</option>
+                                    <option value="ultra">فوق‌العاده (بسیار دقیق)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                </transition>
+            </div>
+        </main>
+
+    </div>
+
+    <script type="module">
+        // Firebase 10.12.2 for modern modular usage
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        
+        const app = new Vue({
+            el: '#app',
+            data: {
+                // UI State
+                isSidebarCollapsed: false,
+                darkMode: false,
+                activeView: 'dashboard',
+                isLoading: true,
+                showCommandPalette: false,
+                commandQuery: '',
+                showAlertModal: false,
+                alertMessage: '',
+                simulationRealismLevel: 'medium',
+
+                // Firebase & Auth
+                db: null,
+                auth: null,
+                userId: null,
+                isAuthReady: false,
+                firestoreListeners: [], 
+
+                // Wallet
+                walletConnected: false,
+                connectedAddress: '',
+                nativeBalance: '0.0', // Added for real ETH/native token balance
+                totalPortfolioValue: 0.0, // New: for combined native and token value
+                
+                // Dashboard Data
+                portfolioChart: null,
+                kpiMetrics: {
+                    pnl: { title: "سود/زیان (24 ساعت)", value: "$0.00", change: "+0.0%", changeType: 'positive', color: 'text-green-500'},
+                    portfolioValue: { title: "ارزش کل پورتفولیو", value: "$0", change: "+0.0%", changeType: 'positive', color: 'text-gray-800 dark:text-gray-200'},
+                    activeBots: { title: "ربات‌های فعال", value: "0", change: "+0", changeType: 'positive', color: 'text-indigo-500'},
+                    sharpeRatio: { title: "نسبت شارپ", value: "0.00", change: "+0.00", changeType: 'positive', color: 'text-blue-500'},
+                    portfolioProjection: { title: "پیش‌بینی پورتفولیو (۲۴ ساعت)", value: "نامشخص", change: "", changeType: 'neutral', color: 'text-gray-500 dark:text-gray-400'}, // New KPI
+                    marketSentimentSummary: { title: "خلاصه احساسات بازار", value: "نامشخص", change: "", changeType: 'neutral', color: 'text-gray-500 dark:text-gray-400'} // New KPI
+                },
+                topPerformingBots: [],
+                dynamicMarketPredictions: [],
+                proactiveInsights: [], // New: For AI-generated proactive alerts
+
+                // Robots Data
+                bots: {}, 
+                botStrategyIdeaInput: '',
+                loadingBotConcept: false,
+                botAnalysisResult: '',
+
+                // AI Center Data
+                smartContractCodeInput: '',
+                contractAuditResult: '',
+                loadingContractAudit: false,
+                transactionHashInput: '',
+                txDecodeResult: '',
+                loadingTxDecode: false,
+                aiSecurityScanResult: '', 
+                loadingAISecurityScan: false,
+                
+                // Security Center Data (Updated for real interaction)
+                tokenAddressInput: '', // New input for token address
+                spenderAddressInput: '', // New input for spender address
+                tokenApprovals: [],
+                loadingApprovals: false,
+
+                // Opportunity Hunter Data
+                loadingOpportunities: false,
+                airdropOpportunities: [],
+                nftWhitelistSpots: [],
+                metaverseOpportunities: [],
+
+                // Monetization Data (Removed for personal use)
+                referralCode: ''
+            },
+            computed: {
+                // These computed properties now always return true for full access
+                isProPlanUser() {
+                    return true; // Always true for personal use
+                },
+                isAlphaHunterUser() {
+                    return true; // Always true for personal use
+                },
+                menuItems() {
+                    // Removed 'monetization' from the menu
+                    return [
+                        { view: 'dashboard', name: 'داشبورد', icon: 'fa-solid fa-chart-pie' },
+                        { view: 'robots', name: 'مدیریت ربات‌ها', icon: 'fa-solid fa-robot' },
+                        { view: 'ai_center', name: 'مرکز تحلیل AI', icon: 'fa-solid fa-brain' },
+                        { view: 'opportunity_hunter', name: 'شکارچی فرصت', icon: 'fa-solid fa-wand-sparkles' },
+                        { view: 'security_center', name: 'مرکز امنیت', icon: 'fa-solid fa-shield-halved' },
+                        { view: 'settings', name: 'تنظیمات', icon: 'fa-solid fa-gear' },
+                    ];
+                },
+                currentViewTitle() {
+                    const current = this.menuItems.find(item => item.view === this.activeView);
+                    return current ? current.name : 'داشبورد';
+                },
+                filteredCommands() {
+                    if (!this.commandQuery) return this.allCommands;
+                    const lowerQuery = this.commandQuery.toLowerCase();
+                    return this.allCommands.filter(cmd => 
+                        cmd.name.toLowerCase().includes(lowerQuery) || 
+                        cmd.category.toLowerCase().includes(lowerQuery)
+                    );
+                },
+                allCommands() {
+                    const commands = [];
+                    this.menuItems.forEach(item => {
+                        commands.push({
+                            id: `nav-${item.view}`, name: `برو به ${item.name}`, category: 'ناوبری', icon: item.icon,
+                            action: () => this.activeView = item.view
+                        });
+                    });
+                    Object.keys(this.bots).forEach(key => {
+                        commands.push({
+                            id: `toggle-${key}`, name: `${this.bots[key].enabled ? 'غیرفعال کردن' : 'فعال کردن'} ربات ${this.bots[key].name}`, category: 'ربات‌ها', icon: 'fa-solid fa-toggle-on',
+                            action: () => this.toggleBot(key)
+                        });
+                    });
+                    commands.push({ id: 'toggle-dark', name: 'تغییر حالت تاریک/روشن', category: 'عمومی', icon: 'fa-solid fa-circle-half-stroke', action: () => this.toggleDarkMode() });
+                    commands.push({ id: 'connect-wallet', name: 'اتصال کیف پول', category: 'عمومی', icon: 'fa-solid fa-wallet', action: () => this.connectWallet() });
+                    commands.push({ id: 'hunt-opportunities', name: 'شکار فرصت‌های Web3', category: 'شکارچی فرصت', icon: 'fa-solid fa-wand-sparkles', action: () => { this.activeView = 'opportunity_hunter'; this.findWeb3Opportunities(); }});
+                    return commands;
+                }
+            },
+            methods: {
+                // --- Custom Alert Modal ---
+                showCustomAlert(message) {
+                    this.alertMessage = message;
+                    this.showAlertModal = true;
+                },
+
+                // --- Initialization & Setup ---
+                async initializeApp() {
+                    this.setupKeyboardShortcuts();
+                    this.loadLocalSettings();
+                    await this.initializeFirebase();
+                    
+                    setTimeout(() => {
+                        this.isLoading = false;
+                        this.fetchDashboardData();
+                        this.$nextTick(() => {
+                            if (this.activeView === 'dashboard') this.renderPortfolioChart();
+                        });
+                    }, 1500);
+                },
+
+                async initializeFirebase() {
+                    try {
+                        // User's provided Firebase configuration
+                        const userFirebaseConfig = {
+                            apiKey: "AIzaSyDKpz8-s7QBfz_zoYCIEQaXBhCSG98GWaY",
+                            authDomain: "nosteroapp.firebaseapp.com",
+                            projectId: "nosteroapp",
+                            storageBucket: "nosteroapp.firebasestorage.app",
+                            messagingSenderId: "114740291160",
+                            appId: "1:114740291160:web:a94604c81db93b55fe0c2d",
+                            measurementId: "G-HC6V6WLD12"
+                        };
+
+                        // Prioritize environment variable if available, otherwise use user's hardcoded config
+                        let firebaseConfig = {};
+                        const envFirebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+                        const envFirebaseConfig = JSON.parse(envFirebaseConfigStr);
+
+                        if (Object.keys(envFirebaseConfig).length > 0) {
+                            firebaseConfig = envFirebaseConfig;
+                        } else {
+                            firebaseConfig = userFirebaseConfig;
+                        }
+
+                        if (Object.keys(firebaseConfig).length === 0) {
+                            console.warn("Firebase config is empty. App will run in offline simulation mode.");
+                            this.isAuthReady = true;
+                            return;
+                        }
+
+                        const fbApp = initializeApp(firebaseConfig);
+                        // Initialize Analytics if measurementId is present
+                        if (firebaseConfig.measurementId) {
+                            getAnalytics(fbApp); // This will initialize analytics
+                        }
+                        this.db = getFirestore(fbApp);
+                        this.auth = getAuth(fbApp);
+                        
+                        await setPersistence(this.auth, browserLocalPersistence);
+
+                        onAuthStateChanged(this.auth, async (user) => {
+                            if (user) {
+                                this.userId = user.uid;
+                                this.referralCode = `AUTOMATA-${user.uid.substring(0,8).toUpperCase()}`;
+                                console.log("Firebase user signed in:", this.userId);
+                                this.isAuthReady = true;
+                                this.attachFirestoreListeners(); 
+                            } else {
+                                try {
+                                    const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                                    if (authToken) {
+                                        await signInWithCustomToken(this.auth, authToken);
+                                    } else {
+                                        await signInAnonymously(this.auth);
+                                    }
+                                } catch (authError) {
+                                    console.error("Error signing in:", authError);
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        console.error("Error initializing Firebase:", error);
+                    }
+                },
+                
+                loadLocalSettings() {
+                    const localDarkMode = localStorage.getItem('cryptoAutomata.darkMode');
+                    if (localDarkMode !== null) {
+                        this.darkMode = JSON.parse(localDarkMode);
+                        this.updateTheme();
+                    }
+                },
+
+                updateTheme() {
+                    document.body.classList.toggle('dark', this.darkMode);
+                    if (this.portfolioChart) {
+                        this.portfolioChart.destroy();
+                        this.renderPortfolioChart();
+                    }
+                },
+                
+                // --- UI & Interaction ---
+                toggleDarkMode() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('cryptoAutomata.darkMode', this.darkMode);
+                    this.updateTheme();
+                    this.saveFirestoreSettings();
+                },
+
+                setupKeyboardShortcuts() {
+                    window.addEventListener('keydown', (e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                            e.preventDefault();
+                            this.showCommandPalette = !this.showCommandPalette;
+                        }
+                    });
+                },
+                
+                executeCommand(action) {
+                    if (typeof action === 'function') action();
+                    this.showCommandPalette = false;
+                },
+
+                // --- Charting ---
+                renderPortfolioChart() {
+                    const ctx = document.getElementById('portfolioChart')?.getContext('2d');
+                    if (!ctx) return;
+                    
+                    const labels = Array.from({ length: 30 }, (_, i) => new Date(Date.now() - (29 - i) * 864e5).toLocaleDateString('fa-IR', { day: 'numeric', month: 'short'}));
+                    // Portfolio data now conceptually includes native balance and simulated token value
+                    const portfolioData = Array.from({ length: 30 }, (_, i) => 
+                        (this.totalPortfolioValue > 0 ? this.totalPortfolioValue : 10000) + i * 150 + Math.random() * 2000 - 1000
+                    );
+                    
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                    gradient.addColorStop(0, this.darkMode ? 'rgba(88, 166, 255, 0.5)' : 'rgba(129, 140, 248, 0.5)');
+                    gradient.addColorStop(1, this.darkMode ? 'rgba(88, 166, 255, 0)' : 'rgba(129, 140, 248, 0)');
+
+                    this.portfolioChart = new Chart(ctx, {
+                        type: 'line', data: { labels, datasets: [{
+                            label: 'ارزش پورتفولیو', data: portfolioData,
+                            borderColor: this.darkMode ? '#58a6ff' : '#4f46e5', borderWidth: 2, pointRadius: 0, tension: 0.4,
+                            fill: true, backgroundColor: gradient,
+                        }]},
+                        options: { responsive: true, maintainAspectRatio: false,
+                            scales: {
+                                y: { grid: { color: this.darkMode ? '#30363d' : '#e5e7eb' }, ticks: { color: this.darkMode ? '#8b949e' : '#6b7280', callback: (v) => `$${(v/1000).toFixed(0)}k` }},
+                                x: { grid: { display: false }, ticks: { color: this.darkMode ? '#8b949e' : '#6b7280' }}
+                            },
+                            plugins: { legend: { display: false }, tooltip: {
+                                mode: 'index', intersect: false, backgroundColor: this.darkMode ? '#161b22' : '#ffffff',
+                                titleColor: this.darkMode ? '#c9d1d1' : '#111827', bodyColor: this.darkMode ? '#c9d1d9' : '#111827',
+                                borderColor: this.darkMode ? '#30363d' : '#e5e7eb', borderWidth: 1,
+                                callbacks: { label: (c) => `ارزش: $${c.parsed.y.toLocaleString()}` }
+                            }},
+                            interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                        }
+                    });
+                },
+
+                // --- Data Fetching & Simulation (Enhanced for Unrivaled) ---
+                async fetchDashboardData() {
+                    // Simulate more dynamic PnL
+                    this.kpiMetrics.pnl.value = `$${(Math.random() * 1000 - 500).toFixed(2)}`;
+                    this.kpiMetrics.pnl.changeType = parseFloat(this.kpiMetrics.pnl.value.replace('$', '')) >= 0 ? 'positive' : 'negative';
+                    this.kpiMetrics.pnl.color = this.kpiMetrics.pnl.changeType === 'positive' ? 'text-green-500' : 'text-red-500';
+                    this.kpiMetrics.pnl.change = `${this.kpiMetrics.pnl.changeType === 'positive' ? '+' : ''}${(Math.random() * 5).toFixed(2)}%`;
+
+                    // Portfolio value will be dynamically updated by connectWallet/updateNativeBalance and simulated token value
+                    // Simulate a fluctuating token portfolio value
+                    const simulatedTokenValue = 5000 + (Math.random() * 3000 - 1500);
+                    this.totalPortfolioValue = parseFloat(this.nativeBalance) * 2000 + simulatedTokenValue; // Assuming 1 ETH = $2000 for simplicity
+                    this.kpiMetrics.portfolioValue.value = `$${this.totalPortfolioValue.toLocaleString('en-US', {maximumFractionDigits:2})}`;
+                    this.kpiMetrics.portfolioValue.change = `${(Math.random() * 3 - 1.5).toFixed(2)}%`;
+                    this.kpiMetrics.portfolioValue.changeType = parseFloat(this.kpiMetrics.portfolioValue.change) >= 0 ? 'positive' : 'negative';
+
+                    this.kpiMetrics.activeBots.value = Object.values(this.bots).filter(b => b.enabled).length;
+                    this.kpiMetrics.sharpeRatio.value = (0.8 + Math.random()*2.0).toFixed(2); // More realistic Sharpe range
+                    this.kpiMetrics.sharpeRatio.change = `${(Math.random() * 0.1 - 0.05).toFixed(2)}`;
+                    this.kpiMetrics.sharpeRatio.changeType = parseFloat(this.kpiMetrics.sharpeRatio.change) >= 0 ? 'positive' : 'negative';
+                    
+                    this.topPerformingBots = Object.values(this.bots).filter(b => b.enabled).map(bot => ({
+                        id: bot.name, name: bot.name, icon: bot.icon,
+                        strategy: bot.description.split('.')[0], pnl: Math.random()*1000 - 200,
+                    }));
+                    
+                    this.dynamicMarketPredictions = [
+                        { asset: 'BTC', bias: Math.random() > 0.5 ? 'صعودی' : 'نزولی', confidence: (75 + Math.random() * 20).toFixed(1)},
+                        { asset: 'ETH', bias: Math.random() > 0.5 ? 'صعودی' : 'نزولی', confidence: (70 + Math.random() * 20).toFixed(1)},
+                        { asset: 'SOL', bias: Math.random() > 0.5 ? 'صعودی' : 'نزولی', confidence: (65 + Math.random() * 25).toFixed(1)},
+                        { asset: 'BNB', bias: Math.random() > 0.5 ? 'صعودی' : 'نزولی', confidence: (60 + Math.random() * 30).toFixed(1)},
+                        { asset: 'ADA', bias: Math.random() > 0.5 ? 'صعودی' : 'نزولی', confidence: (55 + Math.random() * 35).toFixed(1)},
+                    ];
+
+                    // --- New: Proactive AI Insights (Simulated) ---
+                    this.proactiveInsights = []; // Clear previous insights
+                    if (Math.random() > 0.5) { // Simulate occasional insights
+                        this.proactiveInsights.push({
+                            type: 'opportunity',
+                            title: 'فرصت ایردراپ جدید: پروتکل ZK-Rollup',
+                            description: 'AI فعالیت شما را در شبکه‌های لایه ۲ شناسایی کرده است. پروتکل جدیدی با پتانسیل ایردراپ بزرگ در حال راه‌اندازی است. تعامل با آن را بررسی کنید.',
+                            action: 'opportunity_hunter',
+                            actionText: 'مشاهده فرصت‌ها'
+                        });
+                    }
+                    if (Math.random() > 0.6) {
+                        this.proactiveInsights.push({
+                            type: 'security_alert',
+                            title: 'هشدار امنیتی: دسترسی قدیمی توکن',
+                            description: 'AI یک دسترسی توکن قدیمی (ERC-20) را در کیف پول شما شناسایی کرده است که ممکن است غیرضروری باشد. بررسی و لغو آن توصیه می‌شود.',
+                            action: 'security_center',
+                            actionText: 'بررسی دسترسی‌ها'
+                        });
+                    }
+                    if (Math.random() > 0.7) {
+                        this.proactiveInsights.push({
+                            type: 'bot_performance',
+                            title: 'عملکرد ربات: ربات آربیتراژ نیاز به تنظیم دارد',
+                            description: 'عملکرد شبیه‌سازی شده ربات آربیتراژ در ۲۴ ساعت گذشته کاهش یافته است. AI پیشنهاد بهینه‌سازی پارامترها را می‌دهد.',
+                            action: 'robots',
+                            actionText: 'بهینه‌سازی ربات'
+                        });
+                    }
+                    if (Math.random() > 0.4) {
+                        this.kpiMetrics.portfolioProjection.value = Math.random() > 0.5 ? "احتمال رشد متوسط (+2% تا +5%)" : "احتمال نوسان جزئی (-1% تا +1%)";
+                        this.kpiMetrics.portfolioProjection.color = Math.random() > 0.5 ? 'text-green-500' : 'text-yellow-500';
+                    } else {
+                        this.kpiMetrics.portfolioProjection.value = "نامشخص";
+                        this.kpiMetrics.portfolioProjection.color = 'text-gray-500 dark:text-gray-400';
+                    }
+
+                    this.kpiMetrics.marketSentimentSummary.value = Math.random() > 0.5 ? "احساسات کلی بازار: صعودی محتاطانه" : "احساسات کلی بازار: نزولی با ثبات";
+                    this.kpiMetrics.marketSentimentSummary.color = Math.random() > 0.5 ? 'text-green-500' : 'text-red-500';
+
+
+                    this.$nextTick(() => { // Re-render chart if active view is dashboard
+                        if (this.activeView === 'dashboard' && this.portfolioChart) {
+                            this.portfolioChart.destroy();
+                            this.renderPortfolioChart();
+                        }
+                    });
+                },
+                getInsightIcon(type) {
+                    if (type === 'opportunity') return 'fas fa-gift';
+                    if (type === 'security_alert') return 'fas fa-exclamation-triangle';
+                    if (type === 'bot_performance') return 'fas fa-chart-line';
+                    return 'fas fa-info-circle';
+                },
+                getInsightColor(type) {
+                    if (type === 'opportunity') return '#60a5fa'; // blue-400
+                    if (type === 'security_alert') return '#f59e0b'; // amber-500
+                    if (type === 'bot_performance') return '#10b981'; // emerald-500
+                    return '#9ca3af'; // gray-400
+                },
+                executeInsightAction(action) {
+                    this.activeView = action;
+                    if (action === 'opportunity_hunter') {
+                        this.findWeb3Opportunities();
+                    } else if (action === 'security_center') {
+                        // Optionally pre-fill token/spender if insight provides it
+                    } else if (action === 'robots') {
+                        // Optionally highlight a specific bot
+                    }
+                    this.showCustomAlert(`به بخش ${this.menuItems.find(item => item.view === action).name} هدایت شدید.`);
+                },
+
+                // --- Wallet Methods (Real Interaction with MetaMask/Ethers.js) ---
+                async connectWallet() {
+                    if (this.walletConnected) return; // If already connected, do nothing
+
+                    if (typeof window.ethereum !== 'undefined') {
+                        try {
+                            this.showCustomAlert("در حال اتصال به MetaMask...");
+                            // Request account access
+                            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                            const provider = new ethers.providers.Web3Provider(window.ethereum);
+                            const signer = provider.getSigner();
+                            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+
+                            this.connectedAddress = accounts[0];
+                            this.walletConnected = true;
+                            // this.approvalCheckAddress = this.connectedAddress; // This is now handled by direct input
+                            
+                            // Fetch and display native token balance
+                            await this.updateNativeBalance(provider);
+
+                            this.showCustomAlert(`کیف پول با موفقیت متصل شد!\nآدرس: ${this.connectedAddress.substring(0, 6)}...${this.connectedAddress.substring(38)}\nChain ID: ${chainId}`);
+
+                            // Listen for account changes
+                            window.ethereum.on('accountsChanged', this.handleAccountsChanged);
+                            // Listen for chain changes
+                            window.ethereum.on('chainChanged', this.handleChainChanged);
+
+                        } catch (error) {
+                            console.error("خطا در اتصال به MetaMask:", error);
+                            if (error.code === 4001) {
+                                this.showCustomAlert("اتصال به MetaMask توسط کاربر رد شد.");
+                            } else {
+                                this.showCustomAlert(`خطا در اتصال: ${error.message}`);
+                            }
+                            this.walletConnected = false;
+                            this.connectedAddress = '';
+                            this.nativeBalance = '0.0';
+                            this.totalPortfolioValue = 0.0;
+                        }
+                    } else {
+                        this.showCustomAlert("MetaMask یا یک کیف پول سازگار با Web3 یافت نشد. لطفاً آن را نصب کنید.");
+                    }
+                },
+
+                async updateNativeBalance(provider) {
+                    if (!this.connectedAddress || !provider) return;
+                    try {
+                        const balance = await provider.getBalance(this.connectedAddress);
+                        this.nativeBalance = ethers.utils.formatEther(balance);
+                        // Update portfolio value with native balance and simulated token value
+                        const simulatedTokenValue = 5000 + (Math.random() * 3000 - 1500); // Keep token value simulated
+                        this.totalPortfolioValue = parseFloat(this.nativeBalance) * 2000 + simulatedTokenValue; // Assuming 1 ETH = $2000 for simplicity
+                        this.kpiMetrics.portfolioValue.value = `$${this.totalPortfolioValue.toLocaleString('en-US', {maximumFractionDigits:2})}`;
+                    } catch (error) {
+                        console.error("Error fetching native balance:", error);
+                        this.nativeBalance = '0.0';
+                        this.totalPortfolioValue = 0.0;
+                    }
+                },
+
+                handleAccountsChanged(newAccounts) {
+                    if (newAccounts.length > 0) {
+                        this.connectedAddress = newAccounts[0];
+                        this.walletConnected = true;
+                        // this.approvalCheckAddress = this.connectedAddress; // This is now handled by direct input
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        this.updateNativeBalance(provider);
+                        this.showCustomAlert(`حساب MetaMask تغییر کرد به: ${this.connectedAddress.substring(0, 6)}...`);
+                    } else {
+                        this.connectedAddress = '';
+                        this.walletConnected = false;
+                        this.nativeBalance = '0.0';
+                        this.totalPortfolioValue = 0.0;
+                        this.showCustomAlert("اتصال کیف پول قطع شد.");
+                    }
+                },
+
+                handleChainChanged(newChainId) {
+                    this.showCustomAlert(`شبکه MetaMask تغییر کرد به Chain ID: ${newChainId}`);
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    this.updateNativeBalance(provider);
+                    // You might want to reload the app or re-fetch data based on the new chain
+                },
+
+                // --- Bot Management ---
+                toggleBot(botKey) {
+                    if (this.bots[botKey]) {
+                        this.bots[botKey].enabled = !this.bots[botKey].enabled;
+                        this.saveBotSettings(botKey);
+                    }
+                },
+
+                async generateAndDeployBot() {
+                    if (!this.botStrategyIdeaInput.trim()) {
+                        this.showCustomAlert("لطفاً ایده استراتژی ربات خود را وارد کنید.");
+                        return;
+                    }
+                    this.loadingBotConcept = true;
+                    this.botAnalysisResult = "در حال ایجاد و تحلیل ربات با هوش مصنوعی...";
+                    try {
+                        const designPrompt = `بر اساس ایده استراتژی زیر: "${this.botStrategyIdeaInput}"، یک ربات معاملاتی کریپتو شبیه‌سازی شده طراحی کنید. خروجی را به صورت یک شیء JSON با کلیدهای: "name", "description", "maxCapital" (عدد), "gasPriority" ('slow', 'standard', 'fast'), "mevProtection" (بولی), "mevProtectionEnabled" (بولی) ارائه دهید. سپس، یک تحلیل ریسک/پاداش دقیق و جامع برای این ربات ارائه دهید. این تحلیل باید شامل "riskScore" (عدد 0-100), "rewardScore" (عدد 0-100), و یک "analysisText" (رشته متنی مفصل به فارسی) باشد که به طور کامل استراتژی، فرصت‌ها، و خطرات احتمالی را توضیح دهد. همچنین، یک "tradingStrategy" (رشته متنی مفصل به فارسی) شامل جزئیات بیشتری در مورد نحوه عملکرد ربات، نقاط ورود/خروج شبیه‌سازی شده و مدیریت ریسک ارائه دهید. خروجی نهایی باید یک شیء JSON باشد که شامل "botData" (شیء ربات طراحی شده) و "analysisData" (شیء تحلیل ریسک/پاداش) باشد.`;
+                        
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: designPrompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        botData: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                name: { type: "STRING" },
+                                                description: { type: "STRING" },
+                                                maxCapital: { type: "NUMBER" },
+                                                gasPriority: { type: "STRING", enum: ['slow', 'standard', 'fast'] },
+                                                mevProtection: { type: "BOOLEAN" },
+                                                mevProtectionEnabled: { type: "BOOLEAN" }
+                                            },
+                                            required: ["name", "description", "maxCapital", "gasPriority", "mevProtection", "mevProtectionEnabled"]
+                                        },
+                                        analysisData: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                analysisText: { type: "STRING" },
+                                                riskScore: { type: "NUMBER" },
+                                                rewardScore: { type: "NUMBER" },
+                                                tradingStrategy: { type: "STRING" } // New: Detailed trading strategy
+                                            },
+                                            required: ["analysisText", "riskScore", "rewardScore", "tradingStrategy"]
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                        const responseResult = await this.callGeminiApi(payload);
+                        const fullResult = JSON.parse(responseResult);
+                        const botData = fullResult.botData;
+                        const analysisData = fullResult.analysisData;
+
+                        const botKey = "ai_bot_" + Date.now();
+                        const newBot = {
+                            name: botData.name || 'ربات AI', icon: 'fa-solid fa-wand-magic-sparkles',
+                            description: botData.description || 'یک ربات طراحی شده توسط هوش مصنوعی.',
+                            enabled: true, maxCapital: botData.maxCapital || 500,
+                            gasPriority: botData.gasPriority || 'standard',
+                            mevProtection: botData.mevProtection ?? true, mevProtectionEnabled: botData.mevProtectionEnabled ?? false,
+                            simulatedPnl: (Math.random() * 500 - 100).toFixed(2), // Simulate some PnL
+                            simulatedWinRate: (50 + Math.random() * 20).toFixed(1), // Simulate win rate
+                            isAiGenerated: true,
+                            riskScore: analysisData.riskScore, rewardScore: analysisData.rewardScore,
+                            tradingStrategy: analysisData.tradingStrategy // Save detailed strategy
+                        };
+
+                        this.$set(this.bots, botKey, newBot);
+                        await this.saveBotSettings(botKey);
+
+                        this.botAnalysisResult = `${analysisData.analysisText}\n\n**استراتژی معاملاتی:**\n${analysisData.tradingStrategy}\n\nامتیاز ریسک: ${analysisData.riskScore}/100 | امتیاز پاداش: ${analysisData.rewardScore}/100`;
+                        this.showCustomAlert(`ربات "${newBot.name}" با موفقیت ایجاد و تحلیل شد!`);
+                        this.botStrategyIdeaInput = '';
+                    } catch (error) {
+                        this.botAnalysisResult = "خطا در ایجاد ربات: " + error.message;
+                        console.error("Error generating bot:", error);
+                    } finally {
+                        this.loadingBotConcept = false;
+                    }
+                },
+                
+                async smartAdjustBot(botKey) {
+                    const bot = this.bots[botKey];
+                    this.showCustomAlert(`AI در حال تحلیل پارامترهای ربات "${bot.name}" است...`);
+                    try {
+                        const prompt = `یک ربات معاملاتی AI با نام "${bot.name}" و توضیحات "${bot.description}" در حال حاضر حداکثر سرمایه ${bot.maxCapital} دلار و اولویت Gas "${bot.gasPriority}" دارد. با توجه به شرایط شبیه‌سازی شده بازار (مثلاً نوسانات اخیر، حجم معاملات، و احساسات کلی بازار که می‌تواند صعودی یا نزولی باشد) و عملکرد شبیه‌سازی شده فعلی ربات، یک حداکثر سرمایه و اولویت Gas بهینه شده پیشنهاد دهید. پاسخ را به صورت یک شیء JSON با "newCapital" (عدد), "newGasPriority" ('slow', 'standard', 'fast'), و "reasoning" (رشته متنی مفصل به فارسی) ارائه دهید که توضیح دهد AI چگونه به این نتیجه رسیده است و چه عواملی را در نظر گرفته است. همچنین، اگر ربات نیاز به تنظیمات دیگری دارد، آنها را نیز در reasoning ذکر کنید.`;
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        newCapital: { type: "NUMBER" },
+                                        newGasPriority: { type: "STRING", enum: ['slow', 'standard', 'fast'] },
+                                        reasoning: { type: "STRING" }
+                                    },
+                                    required: ["newCapital", "newGasPriority", "reasoning"]
+                                }
+                            }
+                        };
+                        const responseText = await this.callGeminiApi(payload);
+                        const suggestion = JSON.parse(responseText);
+                        
+                        bot.maxCapital = suggestion.newCapital;
+                        bot.gasPriority = suggestion.newGasPriority;
+                        // Simulate self-optimization of PnL and win rate after adjustment
+                        bot.simulatedPnl = (parseFloat(bot.simulatedPnl) + Math.random() * 200 - 50).toFixed(2);
+                        bot.simulatedWinRate = (parseFloat(bot.simulatedWinRate) + Math.random() * 5 - 2.5).toFixed(1);
+
+                        await this.saveBotSettings(botKey);
+                        this.showCustomAlert(`بهینه‌سازی هوشمند انجام شد!\n\nدلایل AI:\n${suggestion.reasoning}\n\nسرمایه جدید: $${suggestion.newCapital}\nاولویت Gas جدید: ${suggestion.newGasPriority}`);
+                    } catch (error) {
+                        this.showCustomAlert("خطا در بهینه‌سازی هوشمند: " + error.message);
+                        console.error("Error adjusting bot:", error);
+                    }
+                },
+                
+                // --- AI Center & Opportunity Hunter Methods (AI-powered Simulations) ---
+                async auditSmartContract() {
+                    if (!this.smartContractCodeInput.trim()) {
+                        this.showCustomAlert("لطفاً کد قرارداد هوشمند را وارد کنید.");
+                        return;
+                    }
+                    this.loadingContractAudit = true;
+                    this.contractAuditResult = "AI در حال ممیزی امنیتی قرارداد هوشمند شما است...";
+                    try {
+                        const prompt = `یک ممیزی امنیتی جامع برای کد قرارداد هوشمند Solidity زیر انجام دهید: \n\`\`\`solidity\n${this.smartContractCodeInput}\n\`\`\`\n\nخروجی را به صورت یک شیء JSON با کلیدهای "summary" (خلاصه کلی), "vulnerabilities" (آرایه‌ای از اشیاء با کلیدهای "name", "severity" ('High', 'Medium', 'Low', 'Informational'), "description", "recommendation" و "attackScenario" (سناریوی حمله احتمالی)), و "bestPractices" (آرایه‌ای از رشته‌ها) و "codeImprovements" (آرایه‌ای از اشیاء با کلیدهای "description" و "suggestedCodeSnippet" (مثال کد)). تمام توضیحات و توصیه‌ها به فارسی باشند. اگر کد معتبر نیست، یک پیام خطا مناسب به فارسی برگردانید.`;
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        summary: { type: "STRING" },
+                                        vulnerabilities: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    name: { type: "STRING" },
+                                                    severity: { type: "STRING", enum: ['High', 'Medium', 'Low', 'Informational'] },
+                                                    description: { type: "STRING" },
+                                                    recommendation: { type: "STRING" },
+                                                    attackScenario: { type: "STRING" } // New: Attack scenario
+                                                }
+                                            }
+                                        },
+                                        bestPractices: {
+                                            type: "ARRAY",
+                                            items: { type: "STRING" }
+                                        },
+                                        codeImprovements: { // New: Code improvements
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    description: { type: "STRING" },
+                                                    suggestedCodeSnippet: { type: "STRING" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                        const responseText = await this.callGeminiApi(payload);
+                        const auditReport = JSON.parse(responseText);
+
+                        let formattedResult = `**خلاصه ممیزی:** ${auditReport.summary}\n\n`;
+                        if (auditReport.vulnerabilities && auditReport.vulnerabilities.length > 0) {
+                            formattedResult += "**آسیب‌پذیری‌های یافت شده:**\n";
+                            auditReport.vulnerabilities.forEach(v => {
+                                formattedResult += `- **${v.name}** (شدت: ${v.severity}):\n  **توضیحات:** ${v.description}\n  **سناریوی حمله:** ${v.attackScenario}\n  **توصیه:** ${v.recommendation}\n\n`;
+                            });
+                        } else {
+                            formattedResult += "هیچ آسیب‌پذیری بحرانی یا متوسطی یافت نشد. (توجه: این یک ممیزی شبیه‌سازی شده است)\n\n";
+                        }
+                        if (auditReport.bestPractices && auditReport.bestPractices.length > 0) {
+                            formattedResult += "**بهترین شیوه‌ها و نکات:**\n";
+                            auditReport.bestPractices.forEach(bp => {
+                                formattedResult += `- ${bp}\n`;
+                            });
+                            formattedResult += "\n";
+                        }
+                        if (auditReport.codeImprovements && auditReport.codeImprovements.length > 0) {
+                            formattedResult += "**پیشنهادات بهبود کد:**\n";
+                            auditReport.codeImprovements.forEach(ci => {
+                                formattedResult += `- **${ci.description}**\n\`\`\`solidity\n${ci.suggestedCodeSnippet}\n\`\`\`\n\n`;
+                            });
+                        }
+
+                        this.contractAuditResult = formattedResult;
+                        this.showCustomAlert("ممیزی قرارداد هوشمند با موفقیت انجام شد!");
+                    } catch (error) {
+                        this.contractAuditResult = "خطا در ممیزی قرارداد: " + error.message;
+                        console.error("Error auditing contract:", error);
+                    } finally {
+                        this.loadingContractAudit = false;
+                    }
+                },
+
+                async decodeTransaction() {
+                    if (!this.transactionHashInput.trim()) {
+                        this.showCustomAlert("لطفاً هش تراکنش را وارد کنید.");
+                        return;
+                    }
+                    this.loadingTxDecode = true;
+                    this.txDecodeResult = "AI در حال رمزگشایی تراکنش شما است...";
+                    try {
+                        const prompt = `هش تراکنش بلاکچین زیر را رمزگشایی کنید و یک توضیح خوانا و دقیق به فارسی درباره محتویات آن (مانند فرستنده، گیرنده، مقدار، نام تابع فراخوانی شده، پارامترها و هر رویداد مرتبط) ارائه دهید: \n\`${this.transactionHashInput}\`\n\nخروجی باید یک شیء JSON با کلیدهای "summary" (خلاصه تراکنش), "details" (جزئیات به صورت متنی), "potentialRisks" (آرایه‌ای از رشته‌ها در صورت وجود), و "simulatedImpact" (تأثیر شبیه‌سازی شده بر موجودی یا دسترسی‌های کیف پول).`;
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        summary: { type: "STRING" },
+                                        details: { type: "STRING" },
+                                        potentialRisks: { type: "ARRAY", items: { type: "STRING" } },
+                                        simulatedImpact: { type: "STRING" } // New: Simulated impact
+                                    }
+                                }
+                            }
+                        };
+                        const responseText = await this.callGeminiApi(payload);
+                        const decodeReport = JSON.parse(responseText);
+
+                        let formattedResult = `**خلاصه تراکنش:** ${decodeReport.summary}\n\n`;
+                        formattedResult += `**جزئیات:** ${decodeReport.details}\n\n`;
+                        if (decodeReport.potentialRisks && decodeReport.potentialRisks.length > 0) {
+                            formattedResult += "**ریسک‌های احتمالی:**\n";
+                            decodeReport.potentialRisks.forEach(risk => {
+                                formattedResult += `- ${risk}\n`;
+                            });
+                            formattedResult += "\n";
+                        } else {
+                            formattedResult += "هیچ ریسک احتمالی خاصی (شبیه‌سازی شده) یافت نشد.\n\n";
+                        }
+                        formattedResult += `**تأثیر شبیه‌سازی شده:** ${decodeReport.simulatedImpact}\n`;
+
+                        this.txDecodeResult = formattedResult;
+                        this.showCustomAlert("رمزگشایی تراکنش با موفقیت انجام شد!");
+                    } catch (error) {
+                        this.txDecodeResult = "خطا در رمزگشایی تراکنش: " + error.message;
+                        console.error("Error decoding transaction:", error);
+                    } finally {
+                        this.loadingTxDecode = false;
+                    }
+                },
+
+                async runAISecurityScan() {
+                    if (!this.walletConnected) { this.showCustomAlert("لطفاً ابتدا کیف پول خود را متصل کنید."); return; }
+                    this.loadingAISecurityScan = true;
+                    this.aiSecurityScanResult = "AI در حال اسکن کیف پول شما برای ریسک‌های امنیتی است...";
+                    try {
+                        const prompt = `یک گزارش جامع اسکن امنیتی برای آدرس کیف پول بلاکچین زیر (شبیه‌سازی شده) ارائه دهید: \n\`${this.connectedAddress}\`\n\nاین گزارش باید شامل "summary" (خلاصه کلی وضعیت امنیتی), "findings" (آرایه‌ای از اشیاء با کلیدهای "type" ('Phishing', 'Suspicious Approval', 'Dust Attack', 'Other', 'No Specific Threat'), "description", "recommendation" و "actionableSteps" (گام‌های عملیاتی)), و "overallRiskLevel" ('Low', 'Medium', 'High') باشد. تمام توضیحات و توصیه‌ها به فارسی باشند. همچنین، یک "proactiveAlert" (رشته متنی) برای نمایش در داشبورد به عنوان یک هشدار فوری، در صورت وجود ریسک مهم، تولید کنید.`;
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        summary: { type: "STRING" },
+                                        findings: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    type: { type: "STRING", enum: ['Phishing', 'Suspicious Approval', 'Dust Attack', 'Other', 'No Specific Threat'] },
+                                                    description: { type: "STRING" },
+                                                    recommendation: { type: "STRING" },
+                                                    actionableSteps: { type: "STRING" } // New: Actionable steps
+                                                }
+                                            }
+                                        },
+                                        overallRiskLevel: { type: "STRING", enum: ['Low', 'Medium', 'High'] },
+                                        proactiveAlert: { type: "STRING" } // New: Proactive alert
+                                    }
+                                }
+                            }
+                        };
+                        const responseText = await this.callGeminiApi(payload);
+                        const scanReport = JSON.parse(responseText);
+
+                        let formattedResult = `**خلاصه امنیتی:** ${scanReport.summary}\n\n`;
+                        formattedResult += `**سطح ریسک کلی:** ${scanReport.overallRiskLevel}\n\n`;
+                        if (scanReport.findings && scanReport.findings.length > 0) {
+                            formattedResult += "**یافته‌های اسکن:**\n";
+                            scanReport.findings.forEach(f => {
+                                formattedResult += `- **نوع:** ${f.type}\n  **توضیحات:** ${f.description}\n  **توصیه:** ${f.recommendation}\n  **گام‌های عملیاتی:** ${f.actionableSteps}\n\n`;
+                            });
+                        } else {
+                            formattedResult += "هیچ تهدید امنیتی خاصی (شبیه‌سازی شده) یافت نشد.\n\n";
+                        }
+
+                        this.aiSecurityScanResult = formattedResult;
+                        this.showCustomAlert("اسکن امنیتی AI با موفقیت انجام شد!");
+
+                        if (scanReport.proactiveAlert && scanReport.overallRiskLevel !== 'Low') {
+                            this.proactiveInsights.push({
+                                type: 'security_alert',
+                                title: 'هشدار فوری امنیتی!',
+                                description: scanReport.proactiveAlert,
+                                action: 'security_center',
+                                actionText: 'بررسی جزئیات'
+                            });
+                        }
+
+                    } catch (error) {
+                        this.aiSecurityScanResult = "خطا در اسکن امنیتی: " + error.message;
+                        console.error("Error running AI security scan:", error);
+                    } finally {
+                        this.loadingAISecurityScan = false;
+                    }
+                },
+
+                async findWeb3Opportunities() {
+                    if (!this.walletConnected) { this.showCustomAlert("لطفاً ابتدا کیف پول خود را متصل کنید."); return; }
+                    this.loadingOpportunities = true;
+                    this.airdropOpportunities = [];
+                    this.nftWhitelistSpots = [];
+                    this.metaverseOpportunities = [];
+                    this.showCustomAlert("AI در حال اسکن بلاکچین برای یافتن فرصت‌های آلفا است...");
+
+                    try {
+                        // Simulate user profile for personalized recommendations
+                        const userProfile = {
+                            connectedAddress: this.connectedAddress,
+                            transactionCount: Math.floor(Math.random() * 500) + 50,
+                            defiInteractions: Math.random() > 0.5 ? 'High' : 'Medium',
+                            nftHoldings: Math.random() > 0.3 ? 'Yes' : 'No',
+                            riskTolerance: this.simulationRealismLevel === 'high' || this.simulationRealismLevel === 'ultra' ? 'High' : 'Medium'
+                        };
+
+                        const prompt = `شما یک AI شکارچی آلفای Web3 هستید. برای آدرس کیف پول ${userProfile.connectedAddress} با پروفایل کاربری زیر (تعداد تراکنش: ${userProfile.transactionCount}, تعاملات DeFi: ${userProfile.defiInteractions}, نگهداری NFT: ${userProfile.nftHoldings}, تحمل ریسک: ${userProfile.riskTolerance})، فرصت‌های درآمدی بالقوه را شناسایی و تولید کنید. خروجی باید یک شیء JSON با سه کلید: "airdrops", "whitelists", و "metaverse" باشد.
+                        - "airdrops": آرایه‌ای از اشیاء با کلیدهای: "project" (نام پروژه), "description" (توضیحات مفصل به فارسی), "confidenceScore" (عدد 0-100), "priority" ('High', 'Medium', 'Low'), "eligibilityCriteria" (آرایه‌ای از رشته‌ها به فارسی), و "actionPlan" (برنامه عملیاتی گام به گام به فارسی).
+                        - "whitelists": آرایه‌ای از اشیاء با کلیدهای: "project" (نام پروژه), "status" ('واجد شرایط' یا 'نیاز به اقدام'), "action" (توضیح اقدام لازم به فارسی), "deadline" (تاریخ), و "aiRecommendation" (توصیه AI به فارسی).
+                        - "metaverse": آرایه‌ای از اشیاء با کلیدهای: "project" (نام پروژه), "description" (توضیحات مفصل به فارسی), "type" ('Free Land', 'Wearable Mint', 'Event Access', 'Play-to-Earn'), "action" (توضیح اقدام لازم به فارسی), "priority" ('High', 'Medium', 'Low'), و "potentialROI" (بازگشت سرمایه احتمالی شبیه‌سازی شده به صورت درصد).
+                        2-3 ایردراپ، 1-2 لیست سفید و 1-2 فرصت متاورس واقع‌گرایانه و جذاب تولید کنید و آنها را بر اساس پروفایل کاربری فوق شخصی‌سازی کنید.`;
+
+                        const payload = { 
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                responseMimeType: "application/json",
+                                responseSchema: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        airdrops: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    project: { type: "STRING" },
+                                                    description: { type: "STRING" },
+                                                    confidenceScore: { type: "NUMBER" },
+                                                    priority: { type: "STRING", enum: ['High', 'Medium', 'Low'] },
+                                                    eligibilityCriteria: { type: "ARRAY", items: { type: "STRING" } },
+                                                    actionPlan: { type: "STRING" } // New: Action plan
+                                                }
+                                            }
+                                        },
+                                        whitelists: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    project: { type: "STRING" },
+                                                    status: { type: "STRING", enum: ['واجد شرایط', 'نیاز به اقدام'] },
+                                                    action: { type: "STRING" },
+                                                    deadline: { type: "STRING" }, // Date string
+                                                    aiRecommendation: { type: "STRING" } // New: AI recommendation
+                                                }
+                                            }
+                                        },
+                                        metaverse: {
+                                            type: "ARRAY",
+                                            items: {
+                                                type: "OBJECT",
+                                                properties: {
+                                                    project: { type: "STRING" },
+                                                    description: { type: "STRING" },
+                                                    type: { type: "STRING", enum: ['Free Land', 'Wearable Mint', 'Event Access', 'Play-to-Earn'] },
+                                                    action: { type: "STRING" },
+                                                    priority: { type: "STRING", enum: ['High', 'Medium', 'Low'] },
+                                                    potentialROI: { type: "NUMBER" } // New: Potential ROI
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                        const responseText = await this.callGeminiApi(payload);
+                        const opportunities = JSON.parse(responseText);
+
+                        this.airdropOpportunities = opportunities.airdrops || [];
+                        this.nftWhitelistSpots = opportunities.whitelists || [];
+                        this.metaverseOpportunities = opportunities.metaverse || [];
+                        this.showCustomAlert("اسکن فرصت‌های آلفا با موفقیت انجام شد!");
+
+                        if (this.airdropOpportunities.length > 0 || this.nftWhitelistSpots.length > 0 || this.metaverseOpportunities.length > 0) {
+                            this.proactiveInsights.push({
+                                type: 'opportunity',
+                                title: 'فرصت‌های آلفای جدید شناسایی شد!',
+                                description: 'AI فرصت‌های درآمدی جدیدی را بر اساس پروفایل شما شناسایی کرده است. برای جزئیات بیشتر به شکارچی فرصت مراجعه کنید.',
+                                action: 'opportunity_hunter',
+                                actionText: 'مشاهده فرصت‌ها'
+                            });
+                        }
+
+                    } catch (error) {
+                        this.showCustomAlert("خطا در هنگام اسکن فرصت‌ها: " + error.message);
+                        console.error("Error finding Web3 opportunities:", error);
+                    } finally {
+                        this.loadingOpportunities = false;
+                    }
+                },
+                
+                getPriorityClass(priority) {
+                    if (priority === 'High') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+                    if (priority === 'Medium') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+                    return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                },
+
+                async callGeminiApi(payload) {
+                    const apiKey = ""; // Provided by environment
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        throw new Error(JSON.stringify(result.error || 'پاسخ نامعتبر از هوش مصنوعی.'));
+                    }
+                },
+                
+                // --- Security Center Methods (Real Interaction with Ethers.js) ---
+                async fetchApprovals() {
+                    if (!this.walletConnected) {
+                        this.showCustomAlert("لطفاً ابتدا کیف پول خود را متصل کنید.");
+                        return;
+                    }
+                    if (!this.tokenAddressInput || !this.spenderAddressInput) {
+                        this.showCustomAlert("لطفاً آدرس توکن و آدرس خرج‌کننده (Spender) را وارد کنید.");
+                        return;
+                    }
+
+                    this.loadingApprovals = true;
+                    this.tokenApprovals = [];
+                    this.showCustomAlert("در حال بررسی دسترسی‌های توکن واقعی از بلاکچین...");
+
+                    try {
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        const erc20Abi = [
+                            "function allowance(address owner, address spender) view returns (uint256)",
+                            "function symbol() view returns (string)",
+                            "function decimals() view returns (uint8)"
+                        ];
+                        
+                        const tokenContract = new ethers.Contract(this.tokenAddressInput, erc20Abi, provider);
+                        
+                        let tokenSymbol = 'Unknown';
+                        let tokenDecimals = 18; // Default to 18 if not found
+
+                        try {
+                            // Validate addresses before calling contract methods
+                            if (!ethers.utils.isAddress(this.tokenAddressInput)) {
+                                throw new Error("آدرس توکن نامعتبر است.");
+                            }
+                            if (!ethers.utils.isAddress(this.spenderAddressInput)) {
+                                throw new Error("آدرس خرج‌کننده (Spender) نامعتبر است.");
+                            }
+
+                            tokenSymbol = await tokenContract.symbol();
+                            tokenDecimals = await tokenContract.decimals();
+                        } catch (e) {
+                            console.warn("Could not fetch token symbol or decimals, using defaults or invalid address.", e);
+                            this.showCustomAlert(`خطا: آدرس توکن یا خرج‌کننده ممکن است نامعتبر باشد یا توکن ERC-20 نباشد. ${e.message}`);
+                            this.loadingApprovals = false;
+                            return;
+                        }
+
+                        const allowance = await tokenContract.allowance(this.connectedAddress, this.spenderAddressInput);
+                        
+                        this.tokenApprovals.push({
+                            tokenAddress: this.tokenAddressInput,
+                            tokenSymbol: tokenSymbol,
+                            spender: this.spenderAddressInput,
+                            amount: allowance.eq(ethers.constants.MaxUint256) ? "Unlimited" : ethers.utils.formatUnits(allowance, tokenDecimals),
+                            rawAllowance: allowance // Store raw allowance for revoke
+                        });
+
+                        this.showCustomAlert("بررسی دسترسی‌ها با موفقیت انجام شد.");
+                    } catch (error) {
+                        console.error("خطا در بررسی دسترسی‌ها:", error);
+                        this.showCustomAlert(`خطا در بررسی دسترسی‌ها: ${error.message || error.code}`);
+                    } finally {
+                        this.loadingApprovals = false;
+                    }
+                },
+                async revokeApproval(approval) {
+                    this.showCustomAlert(`در حال لغو دسترسی برای ${approval.tokenSymbol} از ${approval.spender.substring(0,6)}... \nلطفاً تراکنش را در کیف پول خود تایید کنید.`);
+                    
+                    try {
+                        const provider = new ethers.providers.Web3Provider(window.ethereum);
+                        const signer = provider.getSigner();
+                        const erc20Abi = [
+                            "function approve(address spender, uint256 amount) returns (bool)"
+                        ];
+                        const tokenContract = new ethers.Contract(approval.tokenAddress, erc20Abi, signer);
+                        
+                        // Send transaction to set allowance to 0
+                        const tx = await tokenContract.approve(approval.spender, 0); 
+                        await tx.wait(); // Wait for the transaction to be mined
+
+                        this.showCustomAlert(`دسترسی برای ${approval.tokenSymbol} با موفقیت لغو شد.`);
+                        // Remove the revoked approval from the list
+                        this.tokenApprovals = this.tokenApprovals.filter(a => a !== approval);
+                        // Optionally, re-fetch approvals for the specific token/spender to confirm
+                        // await this.fetchApprovals(); 
+                    } catch (error) {
+                        console.error("خطا در لغو دسترسی:", error);
+                        if (error.code === 4001) {
+                            this.showCustomAlert("تراکنش لغو دسترسی توسط کاربر رد شد.");
+                        } else {
+                            this.showCustomAlert(`خطا در لغو دسترسی: ${error.message || error.code}`);
+                        }
+                    }
+                },
+                
+                // --- Monetization Methods (No longer directly used for UI, but kept for logic) ---
+                async purchaseStrategy(strategy) {
+                    // This method is still functional, allowing strategies to be "purchased" and added to bots
+                    if (this.isStrategyPurchased(strategy.id)) return;
+                    this.showCustomAlert(`در حال خرید استراتژی "${strategy.name}"...`);
+                    
+                    const botKey = "purchased_" + strategy.id;
+                    const newBot = { ...strategy.botData, enabled: false, simulatedPnl: 0, simulatedWinRate: 0 };
+                    
+                    this.$set(this.bots, botKey, newBot);
+                    await this.saveBotSettings(botKey);
+                    this.showCustomAlert(`استراتژی "${strategy.name}" با موفقیت به لیست ربات‌های شما اضافه شد.`);
+                },
+                isStrategyPurchased(strategyId) {
+                    return !!this.bots["purchased_" + strategyId];
+                },
+                copyReferralCode() {
+                    document.execCommand('copy', false, this.referralCode);
+                    this.showCustomAlert("کد ارجاع کپی شد!");
+                },
+                // The subscribeToPlan method is no longer needed as there are no plans.
+                // Keeping it as a stub if any internal logic might still reference it.
+                async subscribeToPlan(plan) {
+                    console.log(`No longer subscribing to plans. Plan ${plan.name} would have been activated.`);
+                },
+
+                // --- Persistence (Firestore) ---
+                attachFirestoreListeners() {
+                    if (!this.isAuthReady || !this.userId || !this.db) return;
+                    
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    this.firestoreListeners.forEach(unsubscribe => unsubscribe());
+                    this.firestoreListeners = [];
+
+                    const settingsRef = doc(this.db, 'artifacts', appId, 'users', this.userId, 'settings', 'global');
+                    const settingsUnsub = onSnapshot(settingsRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const settings = docSnap.data();
+                            this.darkMode = settings.darkMode ?? false;
+                            this.simulationRealismLevel = settings.simulationRealismLevel ?? 'medium';
+                            // this.currentPlanId = settings.currentPlanId ?? 'alpha_hunter'; // Removed, always full access
+                            this.updateTheme();
+                        } else {
+                            this.saveFirestoreSettings();
+                        }
+                    });
+                    this.firestoreListeners.push(settingsUnsub);
+
+                    const botsQuery = query(collection(this.db, 'artifacts', appId, 'users', this.userId, 'bots'));
+                    const botsUnsub = onSnapshot(botsQuery, (querySnapshot) => {
+                        const firestoreBots = {};
+                        if (querySnapshot.empty) {
+                            this.initializeDefaultBots();
+                        } else {
+                            querySnapshot.forEach((doc) => {
+                                firestoreBots[doc.id] = doc.data();
+                            });
+                            this.bots = firestoreBots;
+                        }
+                        this.fetchDashboardData();
+                    });
+                    this.firestoreListeners.push(botsUnsub);
+                },
+                
+                async initializeDefaultBots() {
+                    if (!this.isAuthReady || !this.userId || !this.db) return;
+                    const defaultBots = {
+                        arbitrage: { name: 'ربات آربیتراژ', icon: 'fa-solid fa-right-left', description: 'کشف فرصت‌های آربیتراژ بین صرافی‌ها.', enabled: false, maxCapital: 1000, gasPriority: 'standard', mevProtection: true, mevProtectionEnabled: false, simulatedPnl: 0, simulatedWinRate: 0 },
+                        sniper: { name: 'ربات اسنایپر', icon: 'fa-solid fa-crosshairs', description: 'خرید سریع توکن‌های جدید در لحظه لیست شدن.', enabled: false, maxCapital: 500, gasPriority: 'fast', mevProtection: true, mevProtectionEnabled: true, simulatedPnl: 0, simulatedWinRate: 0 },
+                    };
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const batch = writeBatch(this.db);
+                    for (const botKey in defaultBots) {
+                        const botRef = doc(this.db, 'artifacts', appId, 'users', this.userId, 'bots', botKey);
+                        batch.set(botRef, defaultBots[botKey]);
+                    }
+                    await batch.commit();
+                },
+
+                async saveFirestoreSettings() {
+                    if (!this.isAuthReady || !this.userId || !this.db) return;
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const settingsRef = doc(this.db, 'artifacts', appId, 'users', this.userId, 'settings', 'global');
+                    await setDoc(settingsRef, {
+                        darkMode: this.darkMode,
+                        simulationRealismLevel: this.simulationRealismLevel,
+                        // currentPlanId: this.currentPlanId, // Removed from saving, as it's always full access
+                    }, { merge: true });
+                },
+                
+                async saveBotSettings(botKey) {
+                    if (!this.isAuthReady || !this.userId || !this.db) return;
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const botRef = doc(this.db, 'artifacts', appId, 'users', this.userId, 'bots', botKey);
+                    await setDoc(botRef, this.bots[botKey], { merge: true });
+                },
+            },
+            mounted() {
+                this.initializeApp();
+            },
+            beforeDestroy() {
+                this.firestoreListeners.forEach(unsubscribe => unsubscribe());
+                // Remove MetaMask event listeners to prevent memory leaks
+                if (window.ethereum) {
+                    window.ethereum.removeListener('accountsChanged', this.handleAccountsChanged);
+                    window.ethereum.removeListener('chainChanged', this.handleChainChanged);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
